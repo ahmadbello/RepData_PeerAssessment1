@@ -1,25 +1,106 @@
 ---
-title: "Reproducible Research: Peer Assessment 1"
+title: "Reproducible Research Assignment 1"
+author: "Ahmad Bello Abdullahi"
+date: "21/06/2020"
 output: 
-  html_document:
-    keep_md: true
+  html_document: 
+    keep_md: yes
 ---
 
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
 
-## Loading and preprocessing the data
+## R Markdown
 
+This is an R Markdown document for the Reproducible Research peer-graded Assignment 1.
 
+```{r, echo=TRUE}
+library(lubridate)
+library(dplyr)
+library(lattice)
+```
 
-## What is mean total number of steps taken per day?
+Loading and pre-processing the data
+```{r, echo=TRUE}
+unzip("activity.zip")
+ActData <- read.csv("activity.csv", na.strings = "NA")
+ActData$date <- as.Date(as.character(ActData$date), format = "%Y-%m-%d")
+ActData$year <- year(ActData$date)
+ActData$month <- month(ActData$date)
+ActData$day <- day(ActData$date)
+```
 
+### What is mean total number of steps taken per day?  
 
+1.Total number of steps taken per day
+```{r, echo=TRUE}
+TotalStepsPerDay <- group_by(ActData, year, month, day) %>%
+    summarise(daily_steps = sum(steps, na.rm = TRUE)) %>% 
+    ungroup()
+head(TotalStepsPerDay)
+```
 
-## What is the average daily activity pattern?
+2.Histogram of the total number of steps taken each day
+```{r, echo=TRUE}
+hist(TotalStepsPerDay$daily_steps, main = "Total number of steps per day", col = "skyblue", breaks = 10, xlab = "Total number of steps (per day)")
+```
 
+3.The **mean** and **median** total number of steps taken per day is **`r round(mean(TotalStepsPerDay$daily_steps), 2)`** and **`r median(TotalStepsPerDay$daily_steps)`** respectively.  
 
+### What is the average daily activity pattern?
+1.Time series plot 
+```{r, echo=TRUE}
+IntActData <- group_by(ActData, interval) %>% 
+    summarise(steps = mean(steps, na.rm = TRUE)) %>% 
+    ungroup()
+with(IntActData, plot(interval, steps, type = "l", main = "Average number of steps", xlab = "Average number of steps taken, averaged across all days", ylab = "5-minute interval"))
+```   
+  
+2.The 5-minute interval, on average across all the days in the data set with the maximum number of steps is **`r IntActData[IntActData$steps == max(IntActData$steps),1]`**  
 
-## Imputing missing values
+### Imputing missing values  
+1.The total number of missing values is `r sum(is.na(ActData))`  
+2.Imputing missing values based on the 5-minute interval mean.  
+```{r, echo=TRUE}
+ImpActData <- group_by(ActData, interval) %>% 
+    mutate(steps = ifelse(is.na(steps), mean(steps, na.rm = TRUE), steps)) %>% 
+    ungroup()
+```
+  
+```{r, echo=TRUE}
+head(ImpActData)
+```
+  
+3.Total number of steps taken per day (without missing data)  
 
+```{r, echo=TRUE}
+TotalStepsPerDay1 <- group_by(ImpActData, year, month, day) %>%
+    summarise(daily_steps = sum(steps, na.rm = TRUE)) %>% 
+    ungroup()
+head(TotalStepsPerDay1)
+```
+  
+```{r, echo=TRUE}
+hist(TotalStepsPerDay1$daily_steps, main = "Total number of steps per day", col = "skyblue", breaks = 10, xlab = "Total number of steps (per day)")
+```
+  
+4.The **mean** and **median** total number of steps taken per day (with missing values filled) is **`r as.character(round(mean(TotalStepsPerDay1$daily_steps), 2))`** and **`r as.character(round(mean(TotalStepsPerDay1$daily_steps), 2))`** respectively. Yes, these estimates differ from what we got in the first past of the assignment. The mean and meadian estimates have increased after the missing values imputation.  
 
-
-## Are there differences in activity patterns between weekdays and weekends?
+### Are there differences in activity patterns between weekdays and weekends?
+  
+1.Create a new factor variable in the dataset with two levels – “weekday” and “weekend” indicating whether a given date is a weekday or weekend day.  
+```{r, echo=TRUE}
+ImpActData$weekstatus <- ifelse(weekdays(ImpActData$date) %in% c("Saturday", "Sunday"), "weekend", "weekday")
+```  
+  
+2.Panel plot
+```{r, echo=TRUE}
+IntImpActData <- group_by(ImpActData, interval, weekstatus) %>% 
+    summarise(steps = mean(steps, na.rm = TRUE)) %>% 
+    ungroup()
+```
+  
+```{r, echo=TRUE}
+xyplot(steps ~ interval| weekstatus, data = IntImpActData, layout = c(1, 2), type ="l", xlab = "Interval", ylab = "Number of steps")
+```
